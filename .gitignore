@@ -4,6 +4,9 @@
 [._]*.s[a-w][a-z]
 [._]s[a-w][a-z]
 
+# development database
+.db
+
 
 #######Boilerplate Python gitignore ########
 
