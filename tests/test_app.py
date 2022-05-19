@@ -45,10 +45,9 @@ def test_config(app):
 
 def test_home(app, client, captured_templates):
     
-    tag = Topic(name='Topic1')
-
     with app.app_context():
-        db.session.add(tag)
+        db.session.add(Topic(name='Topic1'))
+        db.session.add(Topic(name='Topic2'))
         db.session.commit()
 
     response = client.get('/')
@@ -60,6 +59,7 @@ def test_home(app, client, captured_templates):
 
     assert template.name == 'index.html'
     assert 'Topic1' in context['quiz_topics']
+    assert 'Topic2' in context['quiz_topics']
 
     with app.app_context():
         db.session.query(Topic).delete()
