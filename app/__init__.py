@@ -1,9 +1,7 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 import config
 from .home import home_bp #TODO import inside app_context?
-
-db = SQLAlchemy()
+from app.extensions import db
 
 def create_app(config_type = None):
     '''Application factory can take several possible configuration
