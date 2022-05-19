@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div id='page-container'>
+  <div class='topbar'>
+  </div>
+  <main class=''>
+    <div class='selector-window'>
+      <form>
+      {% for topic in quiz_topics %}
+        <input type='checkbox' id='{{ topic }}' name='{{ name }}'></input>
+        <label for='{{ topic }}'>{{ topic }}</label>
+      {% endfor %}
+      </form>
+    </div>
+  </main>
+</div>
+{% endblock %}
