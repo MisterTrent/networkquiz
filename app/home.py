@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, abort, session, request
 from app.extensions import db
-from app.models import Topic
+from app.models import Topic, Question
 import json
+import random
 
 home_bp = Blueprint('home', __name__)
 
@@ -22,6 +23,27 @@ def process_form(form):
     
     return selected
 
+def generate_id_list(topiclist, randomize = False):
+    '''Finds all questions matching user settings and creates randomized
+    ordering for future queries by primary key in blocks of a predetermined
+    size.
+    '''
+   
+    #stackoverflow.com/questions/6474989
+    result = db.session.query(Question.id)\
+                .filter(Question.topics.any(Topic.name.in_(topiclist)))\
+                .all()
+    
+    if len(result) < 1:
+        return [] 
+    
+    _ids = [v[0] for v in result] 
+
+    if randomize is True:
+        random.shuffle(_ids)
+
+    return _ids 
+
 @home_bp.route('/quiz', methods=['POST'])
 def quiz_setup():
     '''Receives form with user's quiz settings/preferences and stores in a 
@@ -40,8 +62,8 @@ def quiz_setup():
 
     except:
         abort(400)
-    
-    session['topics'] = topics
+
+    session['question_ids'] = generate_id_list(topics)
 
     return render_template('quiz.html')
 
