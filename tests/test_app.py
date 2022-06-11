@@ -178,3 +178,32 @@ def test_quiz_setup_route(app, client):
         response = client.post('/quiz', data={})
 
         assert response.status_code == 400
+
+def test_quiz_round(app, client, captured_templates):
+    
+    with app.app_context(): 
+        
+        qlist = db.session.query(Question)\
+            .filter(Question.topics.any(Topic.name.in_(['Topic1','Topic2'])))\
+            .all()
+        
+    with client.session_transaction() as session:
+        session['question_ids'] = [q.id for q in qlist]
+        session['block_size'] = len(qlist)
+
+    response = client.get('/get')
+    
+    template, context = captured_templates[0]
+    
+    assert response.status_code == 200
+    assert template.name == 'quiz.html'
+    assert 'questions' in context
+    assert len(qlist) == len(context['questions']) 
+    
+    #TODO doesn't seem to use aliased columns as suggested by documentation,
+    #such as q.question_id, q.multiple_choice_id, etc....why?
+    #docs.sqlalchemy.org/en/14/orm/inheritance_loading.html
+    q_ids = [q.id for q in context['questions']]
+    
+    for q in qlist:
+        assert q.id in q_ids

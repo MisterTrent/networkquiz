@@ -64,8 +64,11 @@ def quiz_setup():
         abort(400)
 
     session['question_ids'] = generate_id_list(topics)
-
-    return render_template('quiz.html')
+    
+    #TODO temp -> make this user selected w/ a default from config
+    session['block_size'] = 20
+    
+    return render_template('portal.html')
 
 @home_bp.route('/')
 def index():

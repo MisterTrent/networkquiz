@@ -1,6 +1,7 @@
 from flask import Flask
 import config
 from .home import home_bp #TODO import inside app_context?
+from .quiz import quiz_bp
 from app.extensions import db
 
 def create_app(config_type = None):
@@ -17,5 +18,6 @@ def create_app(config_type = None):
     db.init_app(app)
 
     app.register_blueprint(home.home_bp)
+    app.register_blueprint(quiz_bp)
 
     return app
