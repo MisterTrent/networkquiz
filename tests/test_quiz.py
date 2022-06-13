@@ -101,7 +101,12 @@ def test_extract_answers():
     assert goodout[1] == '0'
     assert goodout[2] == '3'
 
-    badform = ImmutableMultiDict([('1','0'), ('q22a', '22'), ('q2','3')])
+    badform = ImmutableMultiDict([('1','0'), 
+                                    ('q22a', '22'), 
+                                    ('q', '1'), 
+                                    ('2q3', '1'),
+                                    ('','3'),
+                                    ('q2','3')])
     badout = extract_answers(badform)
 
     assert len(badout.keys()) == 1
