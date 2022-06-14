@@ -4,7 +4,7 @@ from werkzeug.datastructures import ImmutableMultiDict
 from app import create_app
 from app.models import Base, Topic, Question, MultipleChoice
 from app.extensions import db
-from app.quiz import prep_multichoice, extract_answers
+from app.quiz import prep_multichoice, extract_answers, score_input
 
 @pytest.fixture(scope='module')
 def app():
@@ -21,6 +21,10 @@ def app():
     with application.app_context():
         db.session.remove()
         Base.metadata.drop_all(db.engine)
+
+@pytest.fixture(scope='function')
+def client(app):
+    return app.test_client()
 
 @pytest.fixture(scope='module')
 def db_questions(app):
@@ -110,3 +114,17 @@ def test_extract_answers():
 
     assert len(badout.keys()) == 1
     assert badout[2] == '3'
+
+def test_score_input():
+    
+    user_answers = {
+        0 : 4,
+        1 : 3
+    }
+
+    answer_key = {0 : {'correct_index' : 4},
+                  1 : {'correct_index' : 2}}
+
+    score = score_input(user_answers, answer_key)
+
+    assert score[0] == 'correct' and score[1] == 'incorrect'

@@ -41,7 +41,6 @@ def prep_multichoice(qlist):
 def score_input(user_answers, answer_key):
     '''Compares input with the key created at time of quiz round's generation
     '''
-    answer_key = session['answer_key']
     score = {}
 
     for _id, choice in user_answers.items():
@@ -58,7 +57,7 @@ def extract_answers(form):
     '''
    
     #very basic regex to discard unnecessary fields TODO detect user tampering
-    rgx = '(\d+)'    
+    rgx = r"(\d+)"    
     is_question = lambda k : len(k) == 3 and k[0] == 'q' \
                             and k[1].isdigit() and k[2] == ''
     
@@ -90,7 +89,7 @@ def question_submit():
     
     answers = extract_answers(form)
     results = score_input(answers, questions) 
-    
+
     return render_template('answerpage.html', results = results)
 
 @quiz_bp.route('/get', methods=['GET'])
