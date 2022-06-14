@@ -85,9 +85,8 @@ def test_prep_multichoice(app):
             assert q_ids[i] == data['id']
 
             possible_answers = choices[key]
-
-            for idx in data['correct']:
-                assert possible_answers[idx] in questions[i].correct
+            
+            assert possible_answers[data['correct']] == questions[i].correct
             
             for idx in data['incorrect']:
                 assert possible_answers[idx] in questions[i].incorrect

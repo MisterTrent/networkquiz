@@ -17,24 +17,22 @@ def prep_multichoice(qlist):
     choices = {}
    
     #random.shuffle's 'random' parameter deprecated, otherwise we could simply
-    #shuffle correct+incorrect AND rendering indices w/ the same seed param
+    #shuffle all choices together AND rendering indices w/ the same seed param
     for qnum, q in enumerate(qlist):
 
         incorrect = q.incorrect.split(',')
-        correct = q.correct.split(',')
-        both = correct + incorrect
+        correct = q.correct
+        both = incorrect.append(correct)
         
-        n_correct = len(correct)
-        idxs = random.shuffle(list(range((n_incorrect + n_correct))))
+        n_choices = len(both)
+        idxs = random.shuffle(list(range(n_choices)))
         
-        #front of list = correct choices indices; end of list = incorrects'
         answer_key[qnum] = {'id' : q.id,
-                            'correct' : idxs[:n_correct],
-                            'incorrect' : idxs[n_correct:]}
+                            'correct_index' : idxs[-1],
+                            'incorrect_indices' : idxs[:-1]}
         
-        #list of question text matching order 
-        choices[qnum] = [None]* (n_incorrect+n_correct)
-        
+        choices[qnum] = [None]* (n_choices)
+         
         for n,i in enumerate(idxs):
             choices[qnum][i] = both[n]
     
@@ -43,7 +41,14 @@ def prep_multichoice(qlist):
 def score_input(user_answers, answer_key):
     '''Compares input with the key created at time of quiz round's generation
     '''
-    pass 
+    answer_key = session['answer_key']
+    score = {}
+
+    for _id, choice in user_answers.items():
+        correct_index = answer_key[_id]['correct_index']
+        score[_id] = 'correct' if choice == correct_index else 'incorrect'
+
+    return score
 
 def extract_answers(form):
     '''Gets only the answer inputs from the user's quiz form which may have
@@ -57,14 +62,14 @@ def extract_answers(form):
     is_question = lambda k : len(k) == 3 and k[0] == 'q' \
                             and k[1].isdigit() and k[2] == ''
     
-    questions = {}
+    answers = {}
     
     for k,v in form.items():
         split_key = re.split(rgx, k)
         if is_question(split_key):
-           questions[int(split_key[1])] = v 
+           answers[int(split_key[1])] = v 
 
-    return questions
+    return answers
 
 @quiz_bp.route('/submit', methods=['POST'])
 def question_submit():
