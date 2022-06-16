@@ -1,8 +1,10 @@
-from flask import Blueprint, session, render_template
+from flask import Blueprint, session, render_template, abort, request
 from sqlalchemy.orm import with_polymorphic
 import re
+import random
 from app.extensions import db
 from app.models import Topic, Question, MultipleChoice
+import pytest
 
 quiz_bp = Blueprint('quiz', __name__)
 
@@ -13,28 +15,29 @@ def prep_multichoice(qlist):
     
     #keys for both are the question's index; index encoded in html attribute
     #for the form inputs and parsed upon submission to match w/ answer key
-    answer_key = {}
+    answer_key = [None] * len(qlist)
    
     #random.shuffle's 'random' parameter deprecated, otherwise we could simply
     #shuffle all choices together AND rendering indices w/ the same seed param
     for q_idx, q in enumerate(qlist):
 
-        incorrect = q.incorrect.split(',')
+        orig_choices = q.incorrect.split(',')
         correct = q.correct
-        both = incorrect.append(correct)
-        n_choices = len(both)
+        orig_choices.append(correct)
+        n_choices = len(orig_choices)
         
-        idxs = random.shuffle(list(range(n_choices)))
+        idxs = list(range(n_choices))
+        random.shuffle(idxs)
        
         answer_key[q_idx] = {'id' : q.id,
                             'text' : q.text,
                             'correct_index' : idxs[-1]}
         
-        choices = [None]* (n_choices)
+        out_choices = [None]* (n_choices)
         for n,i in enumerate(idxs):
-            choices[i] = both[n]
+            out_choices[i] = orig_choices[n]
         
-        answer_key[q_idx]['choices'] = choices
+        answer_key[q_idx]['choices'] = out_choices
 
     return answer_key
 
@@ -42,10 +45,12 @@ def score_input(user_answers, answer_key):
     '''Compares input with the key created at time of quiz round's generation
     '''
     score = {}
-
-    for q_idx, choice_idx in user_answers.items():
-        correct_index = answer_key[q_idx]['correct_index']
-        score[q_idx] = 'correct' if choice_idx == correct_index else 'incorrect'
+    for q_idx, value in user_answers.items():
+        correct_idx = answer_key[q_idx]['correct_index']
+        
+        #check for errors/user tampering with value attribute of input
+        choice_idx = int(value) if value.isdigit() else None
+        score[q_idx] = 'correct' if choice_idx == correct_idx else 'incorrect'
 
     return score
 
@@ -75,7 +80,6 @@ def question_submit():
     '''Processes a round of quiz questions to compare user input with
     questions' answers.
     '''
-
     try:
         form = request.form
     except:
