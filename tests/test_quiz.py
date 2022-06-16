@@ -83,17 +83,15 @@ def test_prep_multichoice(app):
          
         q_ids = [q.id for q in questions]
 
-        answer_key, choices = prep_multichoice(questions) 
+        answer_key = prep_multichoice(questions) 
         
         for i, (key,data) in enumerate(answer_key.items()):
             assert q_ids[i] == data['id']
 
-            possible_answers = choices[key]
+            possible_answers = data['choices']
+            correct_idx = data['correct_index']
             
-            assert possible_answers[data['correct']] == questions[i].correct
-            
-            for idx in data['incorrect']:
-                assert possible_answers[idx] in questions[i].incorrect
+            assert possible_answers[correct_idx] == questions[i].correct
 
 def test_extract_answers():
 

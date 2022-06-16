@@ -14,38 +14,38 @@ def prep_multichoice(qlist):
     #keys for both are the question's index; index encoded in html attribute
     #for the form inputs and parsed upon submission to match w/ answer key
     answer_key = {}
-    choices = {}
    
     #random.shuffle's 'random' parameter deprecated, otherwise we could simply
     #shuffle all choices together AND rendering indices w/ the same seed param
-    for qnum, q in enumerate(qlist):
+    for q_idx, q in enumerate(qlist):
 
         incorrect = q.incorrect.split(',')
         correct = q.correct
         both = incorrect.append(correct)
-        
         n_choices = len(both)
+        
         idxs = random.shuffle(list(range(n_choices)))
+       
+        answer_key[q_idx] = {'id' : q.id,
+                            'text' : q.text,
+                            'correct_index' : idxs[-1]}
         
-        answer_key[qnum] = {'id' : q.id,
-                            'correct_index' : idxs[-1],
-                            'incorrect_indices' : idxs[:-1]}
-        
-        choices[qnum] = [None]* (n_choices)
-         
+        choices = [None]* (n_choices)
         for n,i in enumerate(idxs):
-            choices[qnum][i] = both[n]
-    
-    return answer_key, choices
+            choices[i] = both[n]
+        
+        answer_key[q_idx]['choices'] = choices
+
+    return answer_key
 
 def score_input(user_answers, answer_key):
     '''Compares input with the key created at time of quiz round's generation
     '''
     score = {}
 
-    for _id, choice in user_answers.items():
-        correct_index = answer_key[_id]['correct_index']
-        score[_id] = 'correct' if choice == correct_index else 'incorrect'
+    for q_idx, choice_idx in user_answers.items():
+        correct_index = answer_key[q_idx]['correct_index']
+        score[q_idx] = 'correct' if choice_idx == correct_index else 'incorrect'
 
     return score
 
@@ -81,16 +81,11 @@ def question_submit():
     except:
         abort(400)
     
-    idlist = session['active_questions']
-    polymap = with_polymorphic(Question, MultipleChoice)
-    questions = db.session.query(polymap)\
-                    .filter(Question.id.in_(q_ids))\
-                    .all()
-    
-    answers = extract_answers(form)
-    results = score_input(answers, questions) 
+    user_answers = extract_answers(form)
+    results = score_input(user_answers, session['answer_key'])
 
-    return render_template('answerpage.html', results = results)
+    return render_template('answerpage.html', results=results,
+                                            questions=session['answer_key'])
 
 @quiz_bp.route('/get', methods=['GET'])
 def get_questions():
@@ -112,15 +107,16 @@ def get_questions():
     questions = db.session.query(polymap)\
                     .filter(Question.id.in_(q_ids))\
                     .all()
-
-    answer_key, questions = prep_multichoice(questions)
-
-    session['active_questions'] = q_ids
+    
+    answer_key = prep_multichoice(questions)
+    
+    #remove already-asked questions
     session['question_ids'] = session['question_ids'][:-n or None]
+    
+    #store active questions for scoring user answers and displaying results
     session['answer_key'] = answer_key
     
     #TODO end quiz if not enough available? Indicate end in jinja context to display?
 
     return render_template('quiz.html', 
-                                questions=questions, 
                                 answer_key=answer_key)
