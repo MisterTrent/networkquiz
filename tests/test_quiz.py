@@ -1,6 +1,7 @@
 import pytest
 from sqlalchemy.orm import with_polymorphic
 from werkzeug.datastructures import ImmutableMultiDict
+from flask import template_rendered, session
 from app import create_app
 from app.models import Base, Topic, Question, MultipleChoice
 from app.extensions import db
@@ -25,6 +26,20 @@ def app():
 @pytest.fixture(scope='function')
 def client(app):
     return app.test_client()
+
+@pytest.fixture(scope='function')
+def captured_templates(app):
+    '''Taken verbatim from Flask's documentation on signals:
+    flask.palletsprojects.com/en/2.1.x/signals/#subscribing-to-signals
+    '''
+    recorded = []
+    def record(sender, template, context, **extra):
+        recorded.append((template, context))
+    template_rendered.connect(record, app)
+    try:
+        yield recorded
+    finally:
+        template_rendered.disconnect(record, app)
 
 @pytest.fixture(scope='module')
 def db_questions(app):
@@ -126,3 +141,32 @@ def test_score_input():
     score = score_input(user_answers, answer_key)
 
     assert score[0] == 'correct' and score[1] == 'incorrect'
+
+def test_quiz_round(app, client, captured_templates):
+    
+    with app.app_context(): 
+        
+        qlist = db.session.query(Question)\
+            .filter(Question.topics.any(Topic.name.in_(['Topic1','Topic2'])))\
+            .all()
+        
+    with client.session_transaction() as session:
+        session['question_ids'] = [q.id for q in qlist]
+        session['block_size'] = len(qlist)
+
+    response = client.get('/get')
+    
+    template, context = captured_templates[0]
+    
+    assert response.status_code == 200
+    assert template.name == 'quiz.html'
+    assert 'questions' in context
+    assert len(qlist) == len(context['questions']) 
+    
+    #TODO doesn't seem to use aliased columns as suggested by documentation,
+    #such as q.question_id, q.multiple_choice_id, etc....why?
+    #docs.sqlalchemy.org/en/14/orm/inheritance_loading.html
+    q_ids = [q.id for q in context['questions'].values()]
+    
+    for q in qlist:
+        assert q.id in q_ids
