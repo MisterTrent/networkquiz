@@ -40,17 +40,13 @@ def captured_templates(app):
     finally:
         template_rendered.disconnect(record, app)
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def db_questions(app):
     '''Populates database with three topics and two questions.
     Question 1 tagged w/ Topic 1, Question 2 w/ Topic 1 and 2. Topic 3 is
     an 'orphan' with no associated question relationship.
     '''
     
-    #TODO scope='function' causes unique constraint error the second time
-    #this fixture runs; possibly due to sqlite's autoincrement issue
-    #docs.sqlalchemy.org/en/14/dialects/sqlite.html
-
     t1 = Topic(name='Topic1')
     t2 = Topic(name='Topic2')
     t3 = Topic(name='Topic3')
@@ -84,22 +80,25 @@ def db_questions(app):
     yield
 
     with app.app_context():
-        db.session.query(Topic).delete()
-        db.session.query(Question).delete()
+        topics = db.session.query(Topic).all()
+        qlist = db.session.query(Question).all()
+        
+        for q in qlist:
+            db.session.delete(q)
+
+        for t in topics:
+            db.session.delete(t)
+
         db.session.commit()
+
 
 def test_config(app):
     '''Ensure proper configuration object used by app factory'''
      
     assert app.config.get('TESTING') is True
 
-def test_home_route(app, client, captured_templates):
+def test_home_route(app, client, db_questions, captured_templates):
     
-    with app.app_context():
-        db.session.add(Topic(name='Topic1'))
-        db.session.add(Topic(name='Topic2'))
-        db.session.commit()
-
     response = client.get('/')
     
     assert response.status_code == 200
@@ -110,10 +109,6 @@ def test_home_route(app, client, captured_templates):
     assert template.name == 'index.html'
     assert 'Topic1' in context['quiz_topics']
     assert 'Topic2' in context['quiz_topics']
-
-    with app.app_context():
-        db.session.query(Topic).delete()
-        db.session.commit()
 
 def test_setup_form(app, db_questions):
     
@@ -156,7 +151,7 @@ def test_question_list_generation(app, db_questions, client):
         assert idlist[1] in correct_ids
         assert incorrect_id not in idlist
 
-def test_quiz_setup_route(app, client):
+def test_quiz_setup_route(app, client, db_questions):
     '''Tests that user quiz settings are saved to the session.'''
     
     goodform = {'Topic1': '', 'Topic2': ''}
